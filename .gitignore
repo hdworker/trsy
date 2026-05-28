@@ -1,22 +1,37 @@
 ```
-# Compiled and build artifacts
+# Go build artifacts
 *.o
-*.obj
-*.out
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Go cache and build directories
+go/pkg/mod/
+go/build/
+*.mod
+*.sum
 
 # Dependencies
 vendor/
 
-# Logs and temp files
-*.log
-*.tmp
+# Test coverage
+coverage.out
+cover/
 
-# Editors
+# IDE and editor files
 .vscode/
 .idea/
+*.swp
+*.swo
+*.tmp
 
-# Environment
+# Logs
+*.log
+
+# Environment files
 .env
 .env.local
-.env.*
+*.env.*
 ```

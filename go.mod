@@ -1,6 +1,6 @@
 module github.com/hirokisan/bybit/v2
 
-go 1.23
+go 1.19
 
 require (
 	github.com/google/go-querystring v1.1.0
@@ -14,3 +14,5 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/cinar/indicator => ./indicators

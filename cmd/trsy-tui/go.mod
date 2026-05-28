@@ -32,3 +32,5 @@ require (
 )
 
 replace golang.org/x/sys => golang.org/x/sys v0.10.0
+
+replace github.com/cinar/indicator => /workspace/indicators

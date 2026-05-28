@@ -2,14 +2,14 @@ package services
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"time"
 
+	"github.com/cinar/indicator"
 	"trsy-tui/models"
 )
 
-// IndicatorService provides technical analysis indicators
+// IndicatorService provides technical analysis indicators using cinar/indicator library
 type IndicatorService struct{}
 
 // NewIndicatorService creates a new indicator service
@@ -17,191 +17,211 @@ func NewIndicatorService() *IndicatorService {
 	return &IndicatorService{}
 }
 
-// CalculateSMA calculates Simple Moving Average
+// CalculateSMA calculates Simple Moving Average using cinar/indicator
 func (s *IndicatorService) CalculateSMA(values []float64, period int) []float64 {
 	if len(values) < period {
 		return nil
 	}
-	
-	result := make([]float64, len(values)-period+1)
-	for i := 0; i <= len(values)-period; i++ {
-		sum := 0.0
-		for j := 0; j < period; j++ {
-			sum += values[i+j]
-		}
-		result[i] = sum / float64(period)
-	}
-	return result
+	return indicator.Sma(period, values)
 }
 
-// CalculateEMA calculates Exponential Moving Average
+// CalculateEMA calculates Exponential Moving Average using cinar/indicator
 func (s *IndicatorService) CalculateEMA(values []float64, period int) []float64 {
 	if len(values) < period {
 		return nil
 	}
-	
-	multiplier := 2.0 / float64(period+1)
-	result := make([]float64, len(values))
-	
-	// First EMA is SMA
-	sum := 0.0
-	for i := 0; i < period; i++ {
-		sum += values[i]
-	}
-	result[period-1] = sum / float64(period)
-	
-	// Calculate rest
-	for i := period; i < len(values); i++ {
-		result[i] = (values[i]-result[i-1])*multiplier + result[i-1]
-	}
-	
-	return result[period-1:]
+	return indicator.Ema(period, values)
 }
 
-// CalculateRSI calculates Relative Strength Index
+// CalculateRSI calculates Relative Strength Index using cinar/indicator
 func (s *IndicatorService) CalculateRSI(values []float64, period int) []float64 {
 	if len(values) < period+1 {
 		return nil
 	}
-	
-	// Calculate changes
-	changes := make([]float64, len(values)-1)
-	for i := 1; i < len(values); i++ {
-		changes[i-1] = values[i] - values[i-1]
-	}
-	
-	gains := make([]float64, len(changes))
-	losses := make([]float64, len(changes))
-	
-	for i, change := range changes {
-		if change > 0 {
-			gains[i] = change
-		} else {
-			losses[i] = -change
-		}
-	}
-	
-	// First average gain/loss
-	avgGain := 0.0
-	avgLoss := 0.0
-	for i := 0; i < period; i++ {
-		avgGain += gains[i]
-		avgLoss += losses[i]
-	}
-	avgGain /= float64(period)
-	avgLoss /= float64(period)
-	
-	rsi := make([]float64, len(changes)-period+1)
-	
-	// First RSI
-	if avgLoss == 0 {
-		rsi[0] = 100
-	} else {
-		rs := avgGain / avgLoss
-		rsi[0] = 100 - (100 / (1 + rs))
-	}
-	
-	// Calculate rest
-	for i := 1; i < len(rsi); i++ {
-		avgGain = (avgGain*float64(period-1) + gains[period+i-1]) / float64(period)
-		avgLoss = (avgLoss*float64(period-1) + losses[period+i-1]) / float64(period)
-		
-		if avgLoss == 0 {
+	// RSI in cinar/indicator expects closing prices and returns RSI values
+	rso := indicator.Rso(period, values)
+	// Convert RSO to RSI: RSI = 100 - (100 / (1 + RSO))
+	rsi := make([]float64, len(rso))
+	for i, v := range rso {
+		if v == 0 {
 			rsi[i] = 100
 		} else {
-			rs := avgGain / avgLoss
-			rsi[i] = 100 - (100 / (1 + rs))
+			rsi[i] = 100 - (100 / (1 + v))
 		}
 	}
-	
 	return rsi
 }
 
-// CalculateMACD calculates MACD indicator
+// CalculateMACD calculates MACD indicator using cinar/indicator
 func (s *IndicatorService) CalculateMACD(values []float64, fastPeriod, slowPeriod, signalPeriod int) ([]float64, []float64, []float64) {
 	if len(values) < slowPeriod {
 		return nil, nil, nil
 	}
+	macdLine, signalLine := indicator.Macd(fastPeriod, slowPeriod, signalPeriod, values)
 	
-	fastEMA := s.CalculateEMA(values, fastPeriod)
-	slowEMA := s.CalculateEMA(values, slowPeriod)
-	
-	// Align lengths
-	minLen := len(fastEMA)
-	if len(slowEMA) < minLen {
-		minLen = len(slowEMA)
+	// Calculate histogram
+	histogram := make([]float64, len(macdLine))
+	minLen := len(signalLine)
+	if len(macdLine) < minLen {
+		minLen = len(macdLine)
 	}
-	
-	macdLine := make([]float64, minLen)
 	for i := 0; i < minLen; i++ {
-		macdLine[i] = fastEMA[len(fastEMA)-minLen+i] - slowEMA[len(slowEMA)-minLen+i]
-	}
-	
-	signalLine := s.CalculateEMA(macdLine, signalPeriod)
-	if signalLine == nil {
-		return macdLine, nil, nil
-	}
-	
-	histogram := make([]float64, len(signalLine))
-	for i := 0; i < len(signalLine); i++ {
-		histogram[i] = macdLine[len(macdLine)-len(signalLine)+i] - signalLine[i]
+		histogram[i] = macdLine[len(macdLine)-minLen+i] - signalLine[len(signalLine)-minLen+i]
 	}
 	
 	return macdLine, signalLine, histogram
 }
 
-// CalculateBollingerBands calculates Bollinger Bands
+// CalculateBollingerBands calculates Bollinger Bands using cinar/indicator
 func (s *IndicatorService) CalculateBollingerBands(values []float64, period int, stdDev float64) ([]float64, []float64) {
 	if len(values) < period {
 		return nil, nil
 	}
-	
-	sma := s.CalculateSMA(values, period)
-	if sma == nil {
-		return nil, nil
+	upper, middle := indicator.BollingerBands(stdDev, period, values)
+	lower := make([]float64, len(upper))
+	for i := range upper {
+		lower[i] = 2*middle[i] - upper[i]
 	}
-	
-	upper := make([]float64, len(sma))
-	lower := make([]float64, len(sma))
-	
-	for i := range sma {
-		// Calculate standard deviation
-		sum := 0.0
-		for j := 0; j < period; j++ {
-			diff := values[i+j] - sma[i]
-			sum += diff * diff
-		}
-		std := math.Sqrt(sum / float64(period))
-		
-		upper[i] = sma[i] + (std * stdDev)
-		lower[i] = sma[i] - (std * stdDev)
-	}
-	
 	return upper, lower
 }
 
-// CalculateStdev calculates standard deviation
+// CalculateStdev calculates standard deviation using cinar/indicator
 func (s *IndicatorService) CalculateStdev(values []float64, period int) []float64 {
 	if len(values) < period {
 		return nil
 	}
-	
-	result := make([]float64, len(values)-period+1)
-	for i := 0; i <= len(values)-period; i++ {
-		sum := 0.0
-		mean := 0.0
-		for j := 0; j < period; j++ {
-			mean += values[i+j]
-		}
-		mean /= float64(period)
-		
-		for j := 0; j < period; j++ {
-			diff := values[i+j] - mean
-			sum += diff * diff
-		}
-		result[i] = math.Sqrt(sum / float64(period))
+	return indicator.StdDev(period, values)
+}
+
+// CalculateATR calculates Average True Range using cinar/indicator
+func (s *IndicatorService) CalculateATR(highs, lows, closes []float64, period int) []float64 {
+	if len(highs) < period || len(lows) < period || len(closes) < period {
+		return nil
 	}
-	return result
+	return indicator.Atr(period, highs, lows, closes)
+}
+
+// CalculateADX calculates Average Directional Index using cinar/indicator
+func (s *IndicatorService) CalculateADX(highs, lows, closes []float64, period int) []float64 {
+	if len(highs) < period || len(lows) < period || len(closes) < period {
+		return nil
+	}
+	return indicator.Adx(period, highs, lows, closes)
+}
+
+// CalculateCCI calculates Commodity Channel Index using cinar/indicator
+func (s *IndicatorService) CalculateCCI(highs, lows, closes []float64, period int) []float64 {
+	if len(highs) < period || len(lows) < period || len(closes) < period {
+		return nil
+	}
+	return indicator.Cci(period, highs, lows, closes)
+}
+
+// CalculateStochastic calculates Stochastic Oscillator using cinar/indicator
+func (s *IndicatorService) CalculateStochastic(highs, lows, closes []float64) ([]float64, []float64) {
+	if len(highs) < 14 || len(lows) < 14 || len(closes) < 14 {
+		return nil, nil
+	}
+	return indicator.Stoch(14, 3, highs, lows, closes)
+}
+
+// CalculateOBV calculates On-Balance Volume using cinar/indicator
+func (s *IndicatorService) CalculateOBV(volumes []float64, closes []float64) []float64 {
+	if len(volumes) < 2 || len(closes) < 2 {
+		return nil
+	}
+	return indicator.Obv(volumes, closes)
+}
+
+// CalculateVWAP calculates Volume Weighted Average Price
+func (s *IndicatorService) CalculateVWAP(highs, lows, closes, volumes []float64) []float64 {
+	if len(highs) == 0 || len(volumes) == 0 {
+		return nil
+	}
+	vwap := make([]float64, len(closes))
+	cumulativeTPV := 0.0
+	cumulativeVolume := 0.0
+	
+	for i := range closes {
+		typicalPrice := (highs[i] + lows[i] + closes[i]) / 3.0
+		cumulativeTPV += typicalPrice * volumes[i]
+		cumulativeVolume += volumes[i]
+		vwap[i] = cumulativeTPV / cumulativeVolume
+	}
+	return vwap
+}
+
+// CalculateIchimoku calculates Ichimoku Cloud components
+func (s *IndicatorService) CalculateIchimoku(highs, lows, closes []float64) (conversionLine, baseLine, leadingSpanA, leadingSpanB, laggingSpan []float64) {
+	if len(highs) < 52 || len(lows) < 52 || len(closes) < 52 {
+		return nil, nil, nil, nil, nil
+	}
+	
+	// Tenkan-sen (Conversion Line): (9-period high + 9-period low)/2
+	conversionLine = make([]float64, len(closes)-8)
+	for i := 8; i < len(closes); i++ {
+		high := highs[i-8]
+		low := lows[i-8]
+		for j := i - 8; j <= i; j++ {
+			if highs[j] > high {
+				high = highs[j]
+			}
+			if lows[j] < low {
+				low = lows[j]
+			}
+		}
+		conversionLine[i-8] = (high + low) / 2.0
+	}
+	
+	// Kijun-sen (Base Line): (26-period high + 26-period low)/2
+	baseLine = make([]float64, len(closes)-25)
+	for i := 25; i < len(closes); i++ {
+		high := highs[i-25]
+		low := lows[i-25]
+		for j := i - 25; j <= i; j++ {
+			if highs[j] > high {
+				high = highs[j]
+			}
+			if lows[j] < low {
+				low = lows[j]
+			}
+		}
+		baseLine[i-25] = (high + low) / 2.0
+	}
+	
+	// Senkou Span A (Leading Span A): (Conversion Line + Base Line)/2
+	minLen := len(conversionLine)
+	if len(baseLine) < minLen {
+		minLen = len(baseLine)
+	}
+	leadingSpanA = make([]float64, minLen)
+	for i := 0; i < minLen; i++ {
+		leadingSpanA[i] = (conversionLine[i] + baseLine[i]) / 2.0
+	}
+	
+	// Senkou Span B (Leading Span B): (52-period high + 52-period low)/2
+	leadingSpanB = make([]float64, len(closes)-51)
+	for i := 51; i < len(closes); i++ {
+		high := highs[i-51]
+		low := lows[i-51]
+		for j := i - 51; j <= i; j++ {
+			if highs[j] > high {
+				high = highs[j]
+			}
+			if lows[j] < low {
+				low = lows[j]
+			}
+		}
+		leadingSpanB[i-51] = (high + low) / 2.0
+	}
+	
+	// Chikou Span (Lagging Span): Close shifted back 26 periods
+	laggingSpan = make([]float64, len(closes)-26)
+	for i := 26; i < len(closes); i++ {
+		laggingSpan[i-26] = closes[i]
+	}
+	
+	return conversionLine, baseLine, leadingSpanA, leadingSpanB, laggingSpan
 }
 
 // GenerateSignal generates a trading signal based on indicators
