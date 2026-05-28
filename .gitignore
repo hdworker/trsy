@@ -1,2 +1,30 @@
-.sandbox
+# Bybit Go Client
+
+# Dependencies
 vendor/
+
+# Build
+*.out
+*.test
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Coverage
+coverage.out
+coverage.html
+coverage.tmp
+*.cov
+
+# Misc
+.sandbox
+session-*.md
