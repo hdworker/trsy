@@ -1,30 +1,22 @@
-# Bybit Go Client
+```
+# Compiled and build artifacts
+*.o
+*.obj
+*.out
 
 # Dependencies
 vendor/
 
-# Build
-*.out
-*.test
-*.exe
+# Logs and temp files
+*.log
+*.tmp
 
-# IDE
-.idea/
+# Editors
 .vscode/
-*.swp
-*.swo
-*~
+.idea/
 
-# OS
-.DS_Store
-Thumbs.db
-
-# Coverage
-coverage.out
-coverage.html
-coverage.tmp
-*.cov
-
-# Misc
-.sandbox
-session-*.md
+# Environment
+.env
+.env.local
+.env.*
+```
